@@ -60,6 +60,18 @@
       {% endfor %}
     </div>
     {% endif %}
+    {% if config.is_backbone_enabled() and not new_user and profile %}
+    <div class="form-group">
+      <label>THC Discord {{_('Account Link')}}</label>
+      <div>
+        {% if content.has_backbone_link() %}
+        <a href="{{ url_for('backbone_auth.unlink') }}" id="unlink_thc_discord" class="btn btn-warning">{{_('Unlink Discord Account')}}</a>
+        {% else %}
+        <a href="{{ url_for('backbone_auth.login') }}" id="link_thc_discord" class="btn btn-primary" style="background-color: #5865F2; border-color: #5865F2;">{{_('Link Discord Account')}}</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
     {% if kobo_support and not new_user %}
     <label>{{ _('Kobo Sync Token')}}</label>
     <div class="form-group col">

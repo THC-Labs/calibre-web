@@ -80,7 +80,16 @@ def main():
         limiter.limit("3/minute", key_func=get_remote_address)(kobo)
         app.register_blueprint(kobo)
         app.register_blueprint(kobo_auth)
+    try:
+        from .backbone_auth import backbone_auth
+        backbone_available = True
+    except ImportError:
+        backbone_available = False
+        backbone_auth = None
+
     if oauth_available:
         app.register_blueprint(oauth)
+    if backbone_available:
+        app.register_blueprint(backbone_auth)
     success = web_server.start()
     sys.exit(0 if success else 1)

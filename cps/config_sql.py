@@ -122,6 +122,11 @@ class _Settings(_Base):
     config_register_email = Column(Boolean, default=False)
     config_login_type = Column(Integer, default=0)
 
+    config_backbone_enabled = Column(Boolean, default=False)
+    config_backbone_url = Column(String, default='http://localhost:8080')
+    config_backbone_jwt_secret = Column(String, default='')
+    config_backbone_auto_register = Column(Boolean, default=True)
+
     config_kobo_proxy = Column(Boolean, default=False)
 
     config_ldap_provider_url = Column(String, default='example.org')
@@ -308,6 +313,31 @@ class ConfigSQL(object):
 
     def get_scheduled_task_settings(self):
         return {k: v for k, v in self.__dict__.items() if k.startswith('schedule_')}
+
+    def is_backbone_enabled(self):
+        env_val = os.getenv("THC_BACKBONE_ENABLED")
+        if env_val is not None:
+            return env_val.strip().lower() in ("1", "true", "yes")
+        return bool(getattr(self, "config_backbone_enabled", False))
+
+    def get_backbone_url(self):
+        env_val = os.getenv("THC_BACKBONE_URL")
+        if env_val:
+            return env_val.strip().rstrip("/")
+        url = getattr(self, "config_backbone_url", "") or "http://localhost:8080"
+        return url.strip().rstrip("/")
+
+    def get_backbone_jwt_secret(self):
+        env_val = os.getenv("THC_BACKBONE_JWT_SECRET")
+        if env_val:
+            return env_val.strip()
+        return getattr(self, "config_backbone_jwt_secret", "") or ""
+
+    def is_backbone_auto_register(self):
+        env_val = os.getenv("THC_BACKBONE_AUTO_REGISTER")
+        if env_val is not None:
+            return env_val.strip().lower() in ("1", "true", "yes")
+        return bool(getattr(self, "config_backbone_auto_register", True))
 
     def set_from_dictionary(self, dictionary, field, convertor=None, default=None, encode=None):
         """Possibly updates a field of this object.

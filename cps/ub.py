@@ -258,9 +258,28 @@ class User(UserBase, Base):
     view_settings = Column(JSON, default={})
     kobo_only_shelves_sync = Column(Integer, default=0)
 
+    def has_backbone_link(self):
+        try:
+            return session.query(OAuth).filter_by(
+                provider=constants.PROVIDER_THC_BACKBONE,
+                user_id=self.id
+            ).first() is not None
+        except Exception:
+            return False
+
 
 if oauth_support:
     class OAuth(OAuthConsumerMixin, Base):
+        provider_user_id = Column(String(256))
+        user_id = Column(Integer, ForeignKey(User.id))
+        user = relationship(User)
+else:
+    class OAuth(Base):
+        __tablename__ = 'flask_dance_oauth'
+        id = Column(Integer, primary_key=True)
+        provider = Column(String(50), nullable=False)
+        created_at = Column(DateTime)
+        token = Column(JSON)
         provider_user_id = Column(String(256))
         user_id = Column(Integer, ForeignKey(User.id))
         user = relationship(User)
