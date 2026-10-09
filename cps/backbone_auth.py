@@ -79,15 +79,21 @@ def verify_backbone_jwt(token: str, secret: str, leeway: int = 30) -> Tuple[bool
     except Exception as e:
         return False, None, f"Failed to decode JWT header: {e}"
 
-    if header.get("alg") != "HS256":
-        return False, None, f"Unsupported JWT algorithm: {header.get('alg')} (expected HS256)"
+    SUPPORTED_ALGS = {
+        "HS256": hashlib.sha256,
+        "HS384": hashlib.sha384,
+        "HS512": hashlib.sha512,
+    }
+    alg = header.get("alg")
+    if alg not in SUPPORTED_ALGS:
+        return False, None, f"Unsupported JWT algorithm: {alg} (expected one of {', '.join(SUPPORTED_ALGS.keys())})"
 
     # Verify signature
     if not secret:
         log.warning("Backbone JWT secret is empty or not configured")
 
     message = f"{header_b64}.{payload_b64}".encode('utf-8')
-    expected_sig = hmac.new(secret.encode('utf-8'), message, hashlib.sha256).digest()
+    expected_sig = hmac.new(secret.encode('utf-8'), message, SUPPORTED_ALGS[alg]).digest()
     expected_sig_b64 = encode_base64url(expected_sig)
 
     if not hmac.compare_digest(signature_b64, expected_sig_b64):

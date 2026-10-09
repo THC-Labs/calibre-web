@@ -27,8 +27,15 @@ def create_test_jwt(secret: str, payload_data: dict, alg: str = "HS256") -> str:
     payload_json = json.dumps(payload_data, separators=(',', ':')).encode('utf-8')
     payload_b64 = encode_base64url(payload_json)
 
+    hash_funcs = {
+        "HS256": hashlib.sha256,
+        "HS384": hashlib.sha384,
+        "HS512": hashlib.sha512,
+    }
+    digest_mod = hash_funcs.get(alg, hashlib.sha256)
+
     message = f"{header_b64}.{payload_b64}".encode('utf-8')
-    signature = hmac.new(secret.encode('utf-8'), message, hashlib.sha256).digest()
+    signature = hmac.new(secret.encode('utf-8'), message, digest_mod).digest()
     sig_b64 = encode_base64url(signature)
 
     return f"{header_b64}.{payload_b64}.{sig_b64}"
@@ -60,6 +67,25 @@ class TestBackboneJwtVerification(unittest.TestCase):
         self.assertEqual(claims["sub"], self.user_uuid)
         self.assertEqual(claims["discordId"], self.discord_id)
         self.assertEqual(claims["username"], self.username)
+
+    def test_valid_hs512_jwt_verification(self):
+        now = time.time()
+        # 64-char 512-bit secret like Spring Boot JJWT with long keys
+        secret_64 = "be478f51c1d622108e8dc0d99d5845af4435fe92e2464d9a7c1dbb75c1fd04e3"
+        payload = {
+            "sub": self.user_uuid,
+            "discordId": self.discord_id,
+            "username": self.username,
+            "iat": int(now),
+            "exp": int(now + 3600),
+        }
+        token = create_test_jwt(secret_64, payload, alg="HS512")
+
+        valid, claims, error = verify_backbone_jwt(token, secret_64)
+        self.assertTrue(valid, f"Verification failed with error: {error}")
+        self.assertIsNone(error)
+        self.assertIsNotNone(claims)
+        self.assertEqual(claims["sub"], self.user_uuid)
 
     def test_invalid_signature_rejected(self):
         now = time.time()
