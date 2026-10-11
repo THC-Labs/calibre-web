@@ -9,6 +9,8 @@ __pycache__/
 .python-version
 env/
 venv/
+calibre-web-env/
+*-env/
 eggs/
 dist/
 executable/
