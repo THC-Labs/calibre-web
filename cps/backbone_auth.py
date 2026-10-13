@@ -125,7 +125,11 @@ def verify_backbone_jwt(token: str, secret: str, leeway: int = 30) -> Tuple[bool
     return True, payload, None
 
 
-def exchange_code_for_jwt(backbone_url: str, code: str, timeout: Tuple[float, float] = (5.0, 10.0)) -> Tuple[Optional[str], Optional[str]]:
+def exchange_code_for_jwt(
+    backbone_url: str,
+    code: str,
+    timeout: Tuple[float, float] = (5.0, 10.0)
+) -> Tuple[Optional[str], Optional[str]]:
     """
     Exchange a single-use authorization code for a JWT via Backbone POST /auth/token?code={code}.
 

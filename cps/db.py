@@ -565,7 +565,6 @@ class CalibreDB:
 
     @classmethod
     def setup_db_cc_classes(cls, cc):
-        global cc_classes
         cc_ids = []
         books_custom_column_links = {}
         for row in cc:

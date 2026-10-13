@@ -710,7 +710,6 @@ def create_admin_user(_session):
         _session.rollback()
 
 def init_db_thread():
-    global app_DB_path
     engine = create_engine('sqlite:///{0}'.format(app_DB_path), echo=False)
 
     Session = scoped_session(sessionmaker())
