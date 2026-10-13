@@ -35,6 +35,7 @@ from .cw_login import login_user, current_user
 from .usermanagement import user_login_required
 from .redirect import get_redirect_location
 from .string_helper import strip_whitespaces
+from urllib.parse import urlencode
 
 log = logger.create()
 
@@ -174,7 +175,12 @@ def login():
     session['thc_backbone_state'] = state
 
     backbone_url = config.get_backbone_url()
-    authorization_url = f"{backbone_url}/oauth2/authorization/discord"
+    callback_url = url_for('backbone_auth.callback', _external=True)
+    params = {
+        'redirect_uri': callback_url,
+        'state': state
+    }
+    authorization_url = f"{backbone_url}/oauth2/authorization/discord?{urlencode(params)}"
     log.debug("Redirecting to Backbone authorization endpoint: %s", authorization_url)
     return redirect(authorization_url)
 
