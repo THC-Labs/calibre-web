@@ -23,6 +23,7 @@ import json
 import secrets
 import time
 from typing import Optional, Tuple, Dict, Any
+from urllib.parse import urlencode, urlparse, urlunparse
 
 import requests
 from flask import Blueprint, request, session, redirect, url_for, flash
@@ -179,7 +180,16 @@ def login():
     session['thc_backbone_state'] = state
 
     backbone_url = config.get_backbone_url()
-    callback_url = url_for('backbone_auth.callback', _external=True)
+
+    # Determine scheme, respecting reverse proxy headers (e.g. Cloudflare)
+    forwarded_proto = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip()
+    scheme = forwarded_proto or request.scheme
+    raw_callback = url_for('backbone_auth.callback', _external=True, _scheme=scheme)
+
+    # Normalize path to /auth/callback to match Backbone's authorized-redirect-uris
+    parsed = urlparse(raw_callback)
+    callback_url = urlunparse((parsed.scheme, parsed.netloc, '/auth/callback', '', '', ''))
+
     params = {
         'redirect_uri': callback_url,
         'state': state
@@ -189,15 +199,23 @@ def login():
     return redirect(authorization_url)
 
 
-@backbone_auth.route('/auth/callback')
 @backbone_auth.route('/login/thc/callback')
+@backbone_auth.route('/auth/callback')
 def callback():
     """
     Callback endpoint invoked by Backbone after Discord OAuth authorization.
-    Backbone redirects to: {frontend-url}/auth/callback?code={code}
+    Backbone redirects to: {frontend-url}/auth/callback?code={code}&state={state}
     """
     if not config.is_backbone_enabled():
         flash(_("THC Backbone authentication is not enabled"), category="error")
+        return redirect(url_for('web.login'))
+
+    # Verify CSRF state token if present
+    client_state = request.args.get('state')
+    expected_state = session.pop('thc_backbone_state', None)
+    if client_state and expected_state and not hmac.compare_digest(client_state, expected_state):
+        log.warning("State mismatch in Backbone callback: expected %s, got %s", expected_state, client_state)
+        flash(_("Authentication state verification failed"), category="error")
         return redirect(url_for('web.login'))
 
     code = request.args.get('code')
