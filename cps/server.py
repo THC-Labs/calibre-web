@@ -71,7 +71,7 @@ class WebServer(object):
     def init_app(self, application, config):
         self.app = application
         self.listen_address = config.get_config_ipaddress()
-        self.listen_port = config.config_port
+        self.listen_port = config.get_config_port() if hasattr(config, "get_config_port") else config.config_port
 
         if config.config_access_log:
             log_name = "gevent.access" if _GEVENT else "tornado.access"

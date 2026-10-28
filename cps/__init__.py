@@ -90,8 +90,8 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
     REMEMBER_COOKIE_SAMESITE='Strict',
     WTF_CSRF_SSL_STRICT=False,
-    SESSION_COOKIE_NAME=os.environ.get('COOKIE_PREFIX', "") + "session",
-    REMEMBER_COOKIE_NAME=os.environ.get('COOKIE_PREFIX', "") + "remember_token"
+    SESSION_COOKIE_NAME=(os.environ.get('CALIBRE_COOKIE_PREFIX') or os.environ.get('COOKIE_PREFIX', "")) + "session",
+    REMEMBER_COOKIE_NAME=(os.environ.get('CALIBRE_COOKIE_PREFIX') or os.environ.get('COOKIE_PREFIX', "")) + "remember_token"
 )
 
 lm = MyLoginManager()
@@ -189,7 +189,13 @@ def create_app():
     log.info('Starting Calibre Web...')
     Principal(app)
     lm.init_app(app)
-    app.secret_key = os.getenv('SECRET_KEY', config_sql.get_flask_session_key(ub.session))
+    app.secret_key = (
+        os.getenv('CALIBRE_SECRET_KEY') or
+        os.getenv('CALIBRE_SECRET') or
+        os.getenv('SECRET_KEY') or
+        os.getenv('SECRET') or
+        config_sql.get_flask_session_key(ub.session)
+    )
 
     web_server.init_app(app, config)
     from .cw_babel import babel, get_locale

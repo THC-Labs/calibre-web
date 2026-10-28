@@ -1,0 +1,33 @@
+# ==============================================================================
+# Default Docker Compose (Defaults to Local Development)
+# Run with: docker compose up --build
+# Or:       docker compose -f docker-compose.dev.yml up --build
+# ==============================================================================
+
+services:
+  calibre-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: thclabs-calibre-web-dev
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8083}:8083"
+    env_file:
+      - .env.development
+    environment:
+      - ENVIRONMENT=development
+      - NODE_ENV=development
+      - APP_MODE=development
+      - PORT=8083
+      - CALIBRE_PORT=8083
+      - CALIBRE_DBPATH=/app
+    volumes:
+      - ./cps:/app/cps
+    command: ["python", "cps.py"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

@@ -37,3 +37,14 @@ gdrive_credentials
 client_secrets.json
 gmail.json
 /.key
+
+# Exclude all actual environment secret files
+.env
+.env*
+.env.local
+.env.*.local
+*.env
+
+# ALWAYS track template/example files
+!.env.example
+!.env*.example

@@ -15,6 +15,15 @@ __pycache__
 cps/cache
 app.db
 gdrive.db
+# Exclude all actual environment secret files
 .env
+.env*
+.env.local
+.env.*.local
+*.env
+
+# ALWAYS track template/example files
+!.env.example
+!.env*.example
 .key
 last_walktrhough_sep3.md

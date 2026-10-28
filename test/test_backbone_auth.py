@@ -369,6 +369,33 @@ class TestBackboneAuthRoutes(unittest.TestCase):
         self.assertIn('/me', response.headers['Location'])
         self.assertFalse(mock_session.delete.called)
 
+    def test_unconfigured_db_before_request_permits_backbone_auth(self):
+        import cps
+        if not cps.cli_param.gd_path:
+            cps.cli_param.gd_path = "/tmp/test_gd.db"
+        from cps.admin import before_request
+        from flask import request as flask_request
+
+        mock_attrs = {
+            'db_configured': False,
+            'config_public_reg': False,
+            'config_anonbrowse': False,
+            'config_uploading': False,
+            'config_theme': 0,
+            'config_authors_max': 10,
+        }
+        with self.app.test_request_context('/login/thc'):
+            self.assertEqual(flask_request.endpoint, 'backbone_auth.login')
+            with patch.multiple(cps.config, **mock_attrs, create=True):
+                result = before_request()
+                self.assertIsNone(result, "backbone_auth.login should not be redirected when db is unconfigured")
+
+        with self.app.test_request_context('/auth/callback'):
+            self.assertEqual(flask_request.endpoint, 'backbone_auth.callback')
+            with patch.multiple(cps.config, **mock_attrs, create=True):
+                result = before_request()
+                self.assertIsNone(result, "backbone_auth.callback should not be redirected when db is unconfigured")
+
 
 if __name__ == '__main__':
     unittest.main()

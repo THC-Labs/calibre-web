@@ -252,6 +252,15 @@ class ConfigSQL(object):
     def get_config_ipaddress(self):
         return self.cli.ip_address or ""
 
+    def get_config_port(self):
+        env_port = os.getenv("CALIBRE_PORT") or os.getenv("CALIBRE_WEB_PORT") or os.getenv("PORT")
+        if env_port:
+            try:
+                return int(env_port)
+            except ValueError:
+                pass
+        return getattr(self, "config_port", None) or constants.DEFAULT_PORT
+
     def _has_role(self, role_flag):
         return constants.has_flag(self.config_default_role, role_flag)
 
@@ -315,26 +324,56 @@ class ConfigSQL(object):
         return {k: v for k, v in self.__dict__.items() if k.startswith('schedule_')}
 
     def is_backbone_enabled(self):
-        env_val = os.getenv("THC_BACKBONE_ENABLED")
+        env_val = (
+            os.getenv("CALIBRE_BACKBONE_ENABLED") or
+            os.getenv("THC_BACKBONE_ENABLED") or
+            os.getenv("BACKBONE_ENABLED")
+        )
         if env_val is not None:
             return env_val.strip().lower() in ("1", "true", "yes")
         return bool(getattr(self, "config_backbone_enabled", False))
 
     def get_backbone_url(self):
-        env_val = os.getenv("THC_BACKBONE_URL")
+        env_val = (
+            os.getenv("CALIBRE_BACKBONE_PUBLIC_URL") or
+            os.getenv("CALIBRE_BACKBONE_URL") or
+            os.getenv("THC_BACKBONE_PUBLIC_URL") or
+            os.getenv("THC_BACKBONE_URL") or
+            os.getenv("BACKBONE_PUBLIC_URL") or
+            os.getenv("BACKBONE_URL")
+        )
         if env_val:
             return env_val.strip().rstrip("/")
         url = getattr(self, "config_backbone_url", "") or "http://localhost:8080"
         return url.strip().rstrip("/")
 
+    def get_backbone_internal_url(self):
+        env_val = (
+            os.getenv("CALIBRE_BACKBONE_INTERNAL_URL") or
+            os.getenv("THC_BACKBONE_INTERNAL_URL") or
+            os.getenv("BACKBONE_INTERNAL_URL")
+        )
+        if env_val:
+            return env_val.strip().rstrip("/")
+        return self.get_backbone_url()
+
     def get_backbone_jwt_secret(self):
-        env_val = os.getenv("THC_BACKBONE_JWT_SECRET")
+        env_val = (
+            os.getenv("CALIBRE_BACKBONE_JWT_SECRET") or
+            os.getenv("THC_BACKBONE_JWT_SECRET") or
+            os.getenv("BACKBONE_JWT_SECRET") or
+            os.getenv("JWT_SECRET")
+        )
         if env_val:
             return env_val.strip()
         return getattr(self, "config_backbone_jwt_secret", "") or ""
 
     def is_backbone_auto_register(self):
-        env_val = os.getenv("THC_BACKBONE_AUTO_REGISTER")
+        env_val = (
+            os.getenv("CALIBRE_BACKBONE_AUTO_REGISTER") or
+            os.getenv("THC_BACKBONE_AUTO_REGISTER") or
+            os.getenv("BACKBONE_AUTO_REGISTER")
+        )
         if env_val is not None:
             return env_val.strip().lower() in ("1", "true", "yes")
         return bool(getattr(self, "config_backbone_auto_register", True))

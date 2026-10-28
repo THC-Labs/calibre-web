@@ -2,10 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ main, master, development, develop ]
     tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ main, master, development, develop ]
 
 env:
   REGISTRY: ghcr.io
@@ -76,7 +76,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=sha,format=short
@@ -95,10 +95,10 @@ jobs:
   deploy:
     name: Deploy to Production
     needs: build-and-push
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Check Deployment Target
+      - name: Check VPS Secrets
         id: check_deploy
         run: |
           if [ -n "${{ secrets.VPS_HOST }}" ]; then
@@ -108,7 +108,7 @@ jobs:
             echo "VPS_HOST secret not configured. Container image is ready in GHCR: ghcr.io/${{ github.repository }}:latest"
           fi
 
-      - name: Deploy via SSH (Docker Compose)
+      - name: Deploy via SSH (Targeted Docker Compose)
         if: steps.check_deploy.outputs.has_vps == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -118,10 +118,12 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
-            echo "Deploying latest container image on production server..."
-            cd /opt/calibre-web || cd ~/calibre-web || cd /opt/thc-calibre-web || cd ~/thc-calibre-web
+            echo "Deploying latest image on production server..."
+            cd /opt/thclabs
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull
-            docker compose up -d --remove-orphans
+            
+            # Targeted deployment: ONLY pull and restart this service
+            docker compose pull calibre-web
+            docker compose up -d calibre-web
             docker image prune -f
             echo "Deployment completed successfully."

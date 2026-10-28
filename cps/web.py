@@ -146,6 +146,11 @@ def viewer_required(f):
 # ################################### data provider functions #########################################################
 
 
+@web.route("/healthz", methods=["GET"])
+def healthz():
+    return jsonify({"status": "healthy", "service": "calibre-web"}), 200
+
+
 @web.route("/ajax/emailstat")
 @user_login_required
 def get_email_status_json():
