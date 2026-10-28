@@ -1,18 +1,14 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-import base64
 import hashlib
 import hmac
 import json
+import os
+import sys
 import time
 import unittest
 from unittest.mock import patch, MagicMock
 from urllib.parse import urlparse, parse_qs
 
-from cps.backbone_auth import (
-    decode_base64url,
+from cps.backbone_auth import (  # noqa: E402
     encode_base64url,
     verify_backbone_jwt,
     exchange_code_for_jwt,
@@ -197,9 +193,11 @@ class TestBackboneAuthRoutes(unittest.TestCase):
         self.babel = Babel(self.app)
         self.login_manager = LoginManager()
         self.login_manager.init_app(self.app)
+
         @self.login_manager.user_loader
         def load_user(user_id, random=None, session_key=None):
             return None
+
         import cps
         cps.config.config_allow_reverse_proxy_header_login = False
         self.app.register_blueprint(backbone_auth)
@@ -207,15 +205,19 @@ class TestBackboneAuthRoutes(unittest.TestCase):
         # Register dummy web endpoints to satisfy redirects
         from flask import Blueprint
         web_bp = Blueprint('web', __name__)
+
         @web_bp.route('/login')
         def login():
             return "login_page"
+
         @web_bp.route('/')
         def index():
             return "index_page"
+
         @web_bp.route('/me')
         def profile():
             return "profile_page"
+
         self.app.register_blueprint(web_bp)
 
         self.client = self.app.test_client()
@@ -299,8 +301,10 @@ class TestBackboneAuthRoutes(unittest.TestCase):
     @patch("cps.backbone_auth.verify_backbone_jwt")
     @patch("cps.backbone_auth.exchange_code_for_jwt", return_value=("valid_jwt", None))
     @patch("cps.config.is_backbone_enabled", return_value=True)
-    def test_callback_success_auto_register_new_user(self, mock_enabled, mock_exchange, mock_verify,
-                                                    mock_auto_reg, mock_session, mock_login):
+    def test_callback_success_auto_register_new_user(
+        self, mock_enabled, mock_exchange, mock_verify,
+        mock_auto_reg, mock_session, mock_login
+    ):
         mock_verify.return_value = (True, {
             "sub": "user-uuid-1234",
             "discordId": "555666777",
@@ -325,8 +329,10 @@ class TestBackboneAuthRoutes(unittest.TestCase):
     @patch("cps.backbone_auth.verify_backbone_jwt")
     @patch("cps.backbone_auth.exchange_code_for_jwt", return_value=("valid_jwt", None))
     @patch("cps.config.is_backbone_enabled", return_value=True)
-    def test_callback_success_existing_linked_user(self, mock_enabled, mock_exchange, mock_verify,
-                                                  mock_session, mock_login):
+    def test_callback_success_existing_linked_user(
+        self, mock_enabled, mock_exchange, mock_verify,
+        mock_session, mock_login
+    ):
         mock_verify.return_value = (True, {
             "sub": "user-uuid-1234",
             "discordId": "555666777",

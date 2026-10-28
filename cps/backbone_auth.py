@@ -36,6 +36,7 @@ from .cw_login import login_user, current_user
 from .usermanagement import user_login_required
 from .redirect import get_redirect_location
 from .string_helper import strip_whitespaces
+from urllib.parse import urlencode
 
 log = logger.create()
 
@@ -125,7 +126,11 @@ def verify_backbone_jwt(token: str, secret: str, leeway: int = 30) -> Tuple[bool
     return True, payload, None
 
 
-def exchange_code_for_jwt(backbone_url: str, code: str, timeout: Tuple[float, float] = (5.0, 10.0)) -> Tuple[Optional[str], Optional[str]]:
+def exchange_code_for_jwt(
+    backbone_url: str,
+    code: str,
+    timeout: Tuple[float, float] = (5.0, 10.0)
+) -> Tuple[Optional[str], Optional[str]]:
     """
     Exchange a single-use authorization code for a JWT via Backbone POST /auth/token?code={code}.
 
