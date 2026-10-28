@@ -197,11 +197,11 @@ def callback():
         flash(_("Authentication failed: %(error)s", error=err), category="error")
         return redirect(url_for('web.login'))
 
-    backbone_url = config.get_backbone_url()
+    backbone_internal_url = config.get_backbone_internal_url()
     jwt_secret = config.get_backbone_jwt_secret()
 
     # Step 1: Exchange code for JWT
-    jwt_token, err = exchange_code_for_jwt(backbone_url, code)
+    jwt_token, err = exchange_code_for_jwt(backbone_internal_url, code)
     if not jwt_token:
         log.error("Failed to exchange code with Backbone: %s", err)
         flash(_("Could not complete Discord authentication: %(error)s", error=err), category="error")

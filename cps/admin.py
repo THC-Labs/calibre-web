@@ -124,13 +124,16 @@ def before_request():
     g.themes = themes.get_available_themes()
     g.theme = themes.get_theme(config.config_theme)
     g.config_authors_max = config.config_authors_max
-    if ('/static/' not in request.path and not config.db_configured and
+    if ('/static/' not in request.path and request.path != '/healthz' and not config.db_configured and
         request.endpoint not in ('admin.ajax_db_config',
                                  'admin.simulatedbchange',
                                  'admin.db_configuration',
+                                 'web.healthz',
                                  'web.login',
                                  'web.login_post',
                                  'web.logout',
+                                 'backbone_auth.login',
+                                 'backbone_auth.callback',
                                  'admin.load_dialogtexts',
                                  'admin.ajax_pathchooser')):
         return redirect(url_for('admin.db_configuration'))

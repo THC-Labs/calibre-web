@@ -21,7 +21,7 @@ import os
 from collections import namedtuple
 
 # APP_MODE - production, development, or test
-APP_MODE             = os.environ.get('APP_MODE', 'production')
+APP_MODE             = os.environ.get('CALIBRE_APP_MODE') or os.environ.get('APP_MODE') or os.environ.get('ENVIRONMENT') or ('development' if os.environ.get('NODE_ENV') == 'development' else 'production')
 
 # if installed via pip this variable is set to true (empty file with name .HOMEDIR present)
 HOME_CONFIG = os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.HOMEDIR'))
@@ -142,11 +142,11 @@ DEFAULT_MAIL_SERVER = "mail.example.org"
 
 DEFAULT_PASSWORD    = "admin123"  # nosec
 DEFAULT_PORT        = 8083
-env_CALIBRE_PORT = os.environ.get("CALIBRE_PORT", DEFAULT_PORT)
+env_CALIBRE_PORT = os.environ.get("CALIBRE_PORT") or os.environ.get("CALIBRE_WEB_PORT") or os.environ.get("PORT") or DEFAULT_PORT
 try:
     DEFAULT_PORT = int(env_CALIBRE_PORT)
 except ValueError:
-    print('Environment variable CALIBRE_PORT has invalid value (%s), faling back to default (8083)' % env_CALIBRE_PORT)
+    print('Environment variable CALIBRE_PORT or PORT has invalid value (%s), falling back to default (8083)' % env_CALIBRE_PORT)
 del env_CALIBRE_PORT
 
 
