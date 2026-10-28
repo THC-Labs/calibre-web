@@ -9,6 +9,7 @@ import json
 import time
 import unittest
 from unittest.mock import patch, MagicMock
+from urllib.parse import urlparse, parse_qs
 
 from cps.backbone_auth import (
     decode_base64url,
@@ -231,11 +232,45 @@ class TestBackboneAuthRoutes(unittest.TestCase):
         with self.client as client:
             response = client.get('/login/thc?next=%2Fcatalog')
             self.assertEqual(response.status_code, 302)
-            self.assertEqual(response.headers['Location'], 'http://localhost:8080/oauth2/authorization/discord')
+
             # Verify session was populated
             from flask import session
             self.assertIn('thc_backbone_state', session)
+            state = session['thc_backbone_state']
             self.assertEqual(session.get('thc_backbone_next'), '/catalog')
+
+            # Verify redirect location and query parameters
+            parsed = urlparse(response.headers['Location'])
+            base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            self.assertEqual(base_url, 'http://localhost:8080/oauth2/authorization/discord')
+
+            params = parse_qs(parsed.query)
+            self.assertEqual(params.get('redirect_uri'), ['http://localhost/auth/callback'])
+            self.assertEqual(params.get('state'), [state])
+
+    @patch("cps.config.get_backbone_url", return_value="https://auth.thehashcode.org")
+    @patch("cps.config.is_backbone_enabled", return_value=True)
+    def test_login_with_forwarded_proto_https(self, mock_enabled, mock_url):
+        with self.client as client:
+            response = client.get(
+                '/login/thc',
+                headers={'X-Forwarded-Proto': 'https', 'Host': 'ebooks.thehashcode.org'}
+            )
+            self.assertEqual(response.status_code, 302)
+            parsed = urlparse(response.headers['Location'])
+            expected_base = 'https://auth.thehashcode.org/oauth2/authorization/discord'
+            self.assertEqual(f"{parsed.scheme}://{parsed.netloc}{parsed.path}", expected_base)
+            params = parse_qs(parsed.query)
+            self.assertEqual(params.get('redirect_uri'), ['https://ebooks.thehashcode.org/auth/callback'])
+
+    @patch("cps.config.is_backbone_enabled", return_value=True)
+    def test_callback_state_mismatch_redirects_to_login(self, mock_enabled):
+        with self.client as client:
+            with client.session_transaction() as sess:
+                sess['thc_backbone_state'] = 'correct_state'
+            response = client.get('/auth/callback?code=valid_code&state=wrong_state')
+            self.assertEqual(response.status_code, 302)
+            self.assertIn('/login', response.headers['Location'])
 
     @patch("cps.config.is_backbone_enabled", return_value=True)
     def test_callback_missing_code_redirects_to_login(self, mock_enabled):
