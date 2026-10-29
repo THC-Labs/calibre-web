@@ -311,7 +311,7 @@ class TestBackboneAuthRoutes(unittest.TestCase):
             "username": "new_discord_hero"
         }, None)
 
-        # Mock no existing OAuth link and no existing username collision
+        # Mock no existing OAuth link and no existing username/email collision
         mock_query = MagicMock()
         mock_session.query.return_value = mock_query
         mock_query.filter_by.return_value.first.return_value = None
@@ -323,6 +323,45 @@ class TestBackboneAuthRoutes(unittest.TestCase):
         self.assertTrue(mock_session.add.called)
         self.assertTrue(mock_session.commit.called)
         self.assertTrue(mock_login.called)
+
+        # Verify new user attributes
+        new_user = mock_session.add.call_args_list[0][0][0]
+        self.assertEqual(new_user.name, "new_discord_hero")
+        self.assertEqual(new_user.email, "discord_555666777@thehashcode.org")
+
+    @patch("cps.backbone_auth.login_user")
+    @patch("cps.ub.session")
+    @patch("cps.config.is_backbone_auto_register", return_value=True)
+    @patch("cps.backbone_auth.verify_backbone_jwt")
+    @patch("cps.backbone_auth.exchange_code_for_jwt", return_value=("valid_jwt", None))
+    @patch("cps.config.is_backbone_enabled", return_value=True)
+    def test_callback_auto_register_email_and_username_collision(
+        self, mock_enabled, mock_exchange, mock_verify,
+        mock_auto_reg, mock_session, mock_login
+    ):
+        mock_verify.return_value = (True, {
+            "sub": "user-uuid-8888",
+            "discordId": "999000111",
+            "username": "existing_hero"
+        }, None)
+
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+        mock_query.filter_by.return_value.first.return_value = None
+
+        # Simulate collision on first lookup, available on second
+        collision_user = MagicMock()
+        mock_query.filter.return_value.first.side_effect = [
+            collision_user,  # username "existing_hero" exists
+            None,            # username "existing_hero_thc" available
+            None             # email "discord_999000111@thehashcode.org" available
+        ]
+
+        response = self.client.get('/auth/callback?code=auth_code_xyz')
+        self.assertEqual(response.status_code, 302)
+        new_user = mock_session.add.call_args_list[0][0][0]
+        self.assertEqual(new_user.name, "existing_hero_thc")
+        self.assertEqual(new_user.email, "discord_999000111@thehashcode.org")
 
     @patch("cps.backbone_auth.login_user")
     @patch("cps.ub.session")
@@ -341,6 +380,7 @@ class TestBackboneAuthRoutes(unittest.TestCase):
 
         existing_user = MagicMock()
         existing_user.name = "existing_user"
+        existing_user.email = ""
 
         oauth_entry = MagicMock()
         oauth_entry.user = existing_user
@@ -348,12 +388,15 @@ class TestBackboneAuthRoutes(unittest.TestCase):
         mock_query = MagicMock()
         mock_session.query.return_value = mock_query
         mock_query.filter_by.return_value.first.return_value = oauth_entry
+        mock_query.filter.return_value.first.return_value = None
 
         response = self.client.get('/auth/callback?code=auth_code_xyz')
         self.assertEqual(response.status_code, 302)
         self.assertIn('/', response.headers['Location'])
         self.assertTrue(mock_login.called)
         self.assertEqual(oauth_entry.token, "valid_jwt")
+        # Empty email should be backfilled with placeholder
+        self.assertEqual(existing_user.email, "discord_555666777@thehashcode.org")
 
     @patch("cps.backbone_auth.current_user")
     @patch("cps.ub.session")

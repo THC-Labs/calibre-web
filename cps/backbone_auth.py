@@ -20,6 +20,7 @@ import base64
 import hmac
 import hashlib
 import json
+import re
 import secrets
 import time
 from typing import Optional, Tuple, Dict, Any
@@ -36,7 +37,6 @@ from .cw_login import login_user, current_user
 from .usermanagement import user_login_required
 from .redirect import get_redirect_location
 from .string_helper import strip_whitespaces
-from urllib.parse import urlencode
 
 log = logger.create()
 
@@ -295,6 +295,12 @@ def callback():
 
     if oauth_entry and oauth_entry.user:
         oauth_entry.token = jwt_token
+        # Backfill unique placeholder email if user currently has an empty email
+        if not oauth_entry.user.email:
+            clean_uid = re.sub(r'[^a-zA-Z0-9]', '', str(provider_user_id)) or "user"
+            placeholder = f"discord_{clean_uid}@thehashcode.org"
+            if not ub.session.query(ub.User).filter(func.lower(ub.User.email) == placeholder.lower()).first():
+                oauth_entry.user.email = placeholder[:120]
         ub.session.commit()
         login_user(oauth_entry.user, remember=True)
         flash(_("Welcome back, %(name)s!", name=oauth_entry.user.name), category="success")
@@ -309,19 +315,39 @@ def callback():
         log.warning("Discord user '%s' (%s) denied login: not linked and auto-register disabled", username, provider_user_id)
         return redirect(url_for('web.login'))
 
+    clean_uid = re.sub(r'[^a-zA-Z0-9]', '', str(provider_user_id)) or "user"
+
     # Determine unique local username
-    raw_name = strip_whitespaces(username or f"discord_{provider_user_id[:8]}")
+    raw_name = strip_whitespaces(username or f"discord_{clean_uid[:8]}")
     candidate_name = raw_name
 
-    existing_user = ub.session.query(ub.User).filter(func.lower(ub.User.name) == candidate_name.lower()).first()
-    if existing_user:
-        candidate_name = f"{raw_name}_thc"
-        if ub.session.query(ub.User).filter(func.lower(ub.User.name) == candidate_name.lower()).first():
-            candidate_name = f"{raw_name}_{provider_user_id[-4:]}"
+    counter = 1
+    while ub.session.query(ub.User).filter(func.lower(ub.User.name) == candidate_name.lower()).first():
+        if counter == 1:
+            candidate_name = f"{raw_name}_thc"
+        else:
+            candidate_name = f"{raw_name}_{clean_uid[-4:]}_{counter}"
+        counter += 1
+
+    candidate_name = candidate_name[:64]
+
+    # Determine unique local email (ub.User.email has a UNIQUE constraint)
+    candidate_email = payload.get("email")
+    if candidate_email:
+        candidate_email = candidate_email.strip()
+        if ub.session.query(ub.User).filter(func.lower(ub.User.email) == candidate_email.lower()).first():
+            candidate_email = None
+
+    if not candidate_email:
+        candidate_email = f"discord_{clean_uid}@thehashcode.org"
+        counter = 1
+        while ub.session.query(ub.User).filter(func.lower(ub.User.email) == candidate_email.lower()).first():
+            candidate_email = f"discord_{clean_uid}_{counter}@thehashcode.org"
+            counter += 1
 
     new_user = ub.User()
     new_user.name = candidate_name
-    new_user.email = ""
+    new_user.email = candidate_email[:120]
     new_user.password = generate_password_hash(secrets.token_urlsafe(32))
     new_user.role = getattr(config, 'config_default_role', constants.ROLE_USER)
     new_user.locale = getattr(config, 'config_default_locale', 'en')
